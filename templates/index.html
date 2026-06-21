@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FB Ad Automation</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f0f2f5; color: #1c1e21; }
+    header { background: #1877f2; color: white; padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
+    header h1 { font-size: 1.3rem; }
+    .badge { background: #fff3; border-radius: 20px; padding: 2px 10px; font-size: 0.8rem; }
+    main { max-width: 1200px; margin: 24px auto; padding: 0 16px; display: grid; gap: 20px; }
+
+    .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+    .card h2 { font-size: 1rem; margin-bottom: 14px; color: #444; }
+
+    .row { display: flex; gap: 12px; flex-wrap: wrap; }
+    input, select { border: 1px solid #ddd; border-radius: 8px; padding: 8px 12px; font-size: 0.9rem; flex: 1; min-width: 120px; }
+    button { background: #1877f2; color: white; border: none; border-radius: 8px; padding: 9px 18px; cursor: pointer; font-size: 0.9rem; white-space: nowrap; }
+    button:hover { background: #166fe5; }
+    button.danger { background: #e74c3c; }
+    button.success { background: #27ae60; }
+    button.secondary { background: #606770; }
+
+    .status-bar { display: flex; gap: 20px; flex-wrap: wrap; }
+    .stat { text-align: center; }
+    .stat .num { font-size: 1.8rem; font-weight: 700; color: #1877f2; }
+    .stat .lbl { font-size: 0.75rem; color: #888; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th { text-align: left; padding: 8px 10px; background: #f7f8fa; color: #666; border-bottom: 2px solid #eee; }
+    td { padding: 8px 10px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+    tr:hover td { background: #f9f9f9; }
+
+    .score { display: inline-block; padding: 2px 8px; border-radius: 20px; font-weight: 600; font-size: 0.8rem; }
+    .score.high { background: #d4edda; color: #155724; }
+    .score.mid  { background: #fff3cd; color: #856404; }
+    .score.low  { background: #f8d7da; color: #721c24; }
+
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 0.75rem; }
+    .pill.sent     { background: #d4edda; color: #155724; }
+    .pill.pending  { background: #e2e3e5; color: #555; }
+    .pill.error    { background: #f8d7da; color: #721c24; }
+
+    .job-status { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+    .job-status.pending   { background: #fff3cd; color: #856404; }
+    .job-status.running   { background: #cce5ff; color: #004085; }
+    .job-status.completed { background: #d4edda; color: #155724; }
+    .job-status.failed    { background: #f8d7da; color: #721c24; }
+
+    #log { background: #1c1e21; color: #a8b3cf; border-radius: 8px; padding: 14px; font-size: 0.8rem; max-height: 140px; overflow-y: auto; font-family: monospace; }
+
+    .tabs { display: flex; gap: 0; border-bottom: 2px solid #eee; margin-bottom: 16px; }
+    .tab  { padding: 8px 18px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; font-size: 0.9rem; color: #666; }
+    .tab.active { border-bottom-color: #1877f2; color: #1877f2; font-weight: 600; }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    #fb-status { font-size: 0.85rem; padding: 6px 12px; border-radius: 20px; display: inline-block; }
+    .msg-preview { background: #f0f2f5; border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; max-width: 500px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>📢 FB Ad Automation</h1>
+  <span class="badge" id="fb-status-badge">⏳ Controllo sessione…</span>
+</header>
+
+<main>
+
+  <!-- Stats -->
+  <div class="card">
+    <div class="status-bar" id="stats">
+      <div class="stat"><div class="num" id="s-total">–</div><div class="lbl">Lead totali</div></div>
+      <div class="stat"><div class="num" id="s-qualified">–</div><div class="lbl">Score ≥ 60</div></div>
+      <div class="stat"><div class="num" id="s-sent">–</div><div class="lbl">Messaggi inviati</div></div>
+      <div class="stat"><div class="num" id="s-jobs">–</div><div class="lbl">Ricerche effettuate</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="tabs">
+      <div class="tab active" onclick="showTab('search')">🔍 Nuova Ricerca</div>
+      <div class="tab" onclick="showTab('jobs')">📋 Ricerche</div>
+      <div class="tab" onclick="showTab('leads')">👥 Lead</div>
+      <div class="tab" onclick="showTab('messages')">💬 Messaggi</div>
+      <div class="tab" onclick="showTab('settings')">⚙️ Impostazioni</div>
+    </div>
+
+    <!-- SEARCH -->
+    <div id="tab-search" class="panel active">
+      <h2>Ricerca inserzioni Facebook Ad Library</h2>
+      <div class="row" style="margin-bottom:10px">
+        <input id="kw" placeholder="Parola chiave (es. fisioterapia, ecommerce…)" />
+        <select id="country">
+          <option value="IT">🇮🇹 Italia</option>
+          <option value="US">🇺🇸 USA</option>
+          <option value="GB">🇬🇧 UK</option>
+          <option value="DE">🇩🇪 Germania</option>
+          <option value="FR">🇫🇷 Francia</option>
+        </select>
+        <select id="ad-type">
+          <option value="ALL">Tutti i tipi</option>
+          <option value="POLITICAL_AND_ISSUE_ADS">Politiche</option>
+        </select>
+      </div>
+      <div class="row" style="margin-bottom:12px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:.85rem">
+          Max risultati: <input id="max-res" type="number" value="30" style="width:70px;flex:none" />
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.85rem">
+          Score minimo: <input id="min-score" type="number" value="60" style="width:70px;flex:none" />
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.85rem">
+          <input id="auto-send" type="checkbox" /> Invia messaggi automaticamente
+        </label>
+      </div>
+      <button onclick="startSearch()">🚀 Avvia Ricerca & Analisi</button>
+      <div id="log" style="margin-top:14px">Pronto.</div>
+    </div>
+
+    <!-- JOBS -->
+    <div id="tab-jobs" class="panel">
+      <h2>Ricerche effettuate</h2>
+      <button class="secondary" onclick="loadJobs()" style="margin-bottom:12px">🔄 Aggiorna</button>
+      <table>
+        <thead><tr><th>ID</th><th>Parola chiave</th><th>Stato</th><th>Lead trovati</th><th>Messaggi</th><th>Data</th></tr></thead>
+        <tbody id="jobs-body"></tbody>
+      </table>
+    </div>
+
+    <!-- LEADS -->
+    <div id="tab-leads" class="panel">
+      <h2>Lead analizzati</h2>
+      <div class="row" style="margin-bottom:10px">
+        <input id="filter-score" type="number" placeholder="Score minimo (es. 60)" style="max-width:160px" />
+        <select id="filter-sent">
+          <option value="">Tutti</option>
+          <option value="false">Solo non inviati</option>
+          <option value="true">Solo inviati</option>
+        </select>
+        <button class="secondary" onclick="loadLeads()">🔄 Filtra</button>
+      </div>
+      <table>
+        <thead><tr><th>Pagina</th><th>Categoria</th><th>Score</th><th>Messaggio</th><th>Stato</th><th>Azioni</th></tr></thead>
+        <tbody id="leads-body"></tbody>
+      </table>
+    </div>
+
+    <!-- MESSAGES -->
+    <div id="tab-messages" class="panel">
+      <h2>Messaggi preimpostati (20)</h2>
+      <div id="messages-list"></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="tab-settings" class="panel">
+      <h2>Sessione Facebook</h2>
+      <p style="margin-bottom:12px;font-size:.9rem;color:#555">
+        Per inviare messaggi è necessario effettuare il login con il tuo account Facebook.
+        La sessione viene salvata localmente — non vengono memorizzate credenziali.
+      </p>
+      <div id="fb-status" style="margin-bottom:14px">Caricamento…</div>
+      <button onclick="doFbLogin()">🔐 Login Facebook (apre browser)</button>
+    </div>
+
+  </div>
+</main>
+
+<script>
+const API = '/api';
+
+async function api(path, method='GET', body=null) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(API + path, opts);
+  return r.json();
+}
+
+function log(msg) {
+  const el = document.getElementById('log');
+  el.textContent += '\n' + new Date().toLocaleTimeString() + ' › ' + msg;
+  el.scrollTop = el.scrollHeight;
+}
+
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+  if (name === 'jobs') loadJobs();
+  if (name === 'leads') loadLeads();
+  if (name === 'messages') loadMessages();
+}
+
+function scoreClass(s) {
+  if (s >= 70) return 'high';
+  if (s >= 50) return 'mid';
+  return 'low';
+}
+
+// ── Search ────────────────────────────────────────────────────────────────────
+async function startSearch() {
+  const kw = document.getElementById('kw').value.trim();
+  if (!kw) { alert('Inserisci una parola chiave'); return; }
+  const body = {
+    keyword: kw,
+    country: document.getElementById('country').value,
+    ad_type: document.getElementById('ad-type').value,
+    max_results: +document.getElementById('max-res').value,
+    min_score: +document.getElementById('min-score').value,
+    auto_send: document.getElementById('auto-send').checked,
+  };
+  log(`Avvio ricerca per "${kw}"…`);
+  const res = await api('/search', 'POST', body);
+  log(`Job creato: ID ${res.job_id}. Analisi in corso…`);
+  pollJob(res.job_id);
+}
+
+async function pollJob(id) {
+  const interval = setInterval(async () => {
+    const j = await api(`/search/${id}`);
+    log(`Job ${id} — stato: ${j.status} | lead: ${j.ads_found}`);
+    if (j.status === 'completed' || j.status === 'failed') {
+      clearInterval(interval);
+      log(j.status === 'completed'
+        ? `✅ Completato! ${j.ads_found} lead trovati.`
+        : `❌ Errore: ${j.error}`);
+      loadStats();
+    }
+  }, 5000);
+}
+
+// ── Jobs ──────────────────────────────────────────────────────────────────────
+async function loadJobs() {
+  const jobs = await api('/search');
+  const tbody = document.getElementById('jobs-body');
+  tbody.innerHTML = jobs.map(j => `
+    <tr>
+      <td>#${j.id}</td>
+      <td><strong>${j.keyword}</strong></td>
+      <td><span class="job-status ${j.status}">${j.status}</span></td>
+      <td>${j.ads_found}</td>
+      <td>${j.messages_sent}</td>
+      <td style="white-space:nowrap">${new Date(j.created_at).toLocaleString('it')}</td>
+    </tr>`).join('');
+}
+
+// ── Leads ─────────────────────────────────────────────────────────────────────
+async function loadLeads() {
+  const sc = document.getElementById('filter-score').value || 0;
+  const sent = document.getElementById('filter-sent').value;
+  let url = `/leads?min_score=${sc}&limit=200`;
+  if (sent !== '') url += `&message_sent=${sent}`;
+  const leads = await api(url);
+  const tbody = document.getElementById('leads-body');
+  tbody.innerHTML = leads.map(l => `
+    <tr>
+      <td><a href="${l.page_url}" target="_blank">${l.page_name}</a><br>
+        <small style="color:#888">${l.search_keyword}</small></td>
+      <td>${l.category || '–'}</td>
+      <td><span class="score ${scoreClass(l.analysis_score)}">${l.analysis_score}</span></td>
+      <td>${l.selected_message_id ? `#${l.selected_message_id}` : '–'}</td>
+      <td>${l.message_sent
+        ? '<span class="pill sent">✅ Inviato</span>'
+        : l.message_error
+          ? `<span class="pill error" title="${l.message_error}">❌ Errore</span>`
+          : '<span class="pill pending">In attesa</span>'}</td>
+      <td>
+        ${!l.message_sent ? `<button onclick="sendMsg(${l.id})" style="padding:4px 10px;font-size:.75rem">Invia</button>` : ''}
+        <button class="secondary" onclick="showAnalysis(${l.id})" style="padding:4px 10px;font-size:.75rem;margin-left:4px">Analisi</button>
+      </td>
+    </tr>`).join('');
+}
+
+async function sendMsg(leadId) {
+  if (!confirm('Inviare il messaggio a questo lead?')) return;
+  const r = await api(`/leads/${leadId}/send`, 'POST', { lead_id: leadId });
+  alert('Messaggio in coda! Task: ' + r.task_id);
+  setTimeout(loadLeads, 3000);
+}
+
+async function showAnalysis(leadId) {
+  const l = await api(`/leads/${leadId}`);
+  alert(`Analisi per ${l.page_name}:\n\nScore: ${l.analysis_score}/100\nCategoria: ${l.category}\n\n${l.analysis_summary}`);
+}
+
+// ── Messages ──────────────────────────────────────────────────────────────────
+async function loadMessages() {
+  const msgs = await api('/messages');
+  const el = document.getElementById('messages-list');
+  el.innerHTML = msgs.map(m => `
+    <div style="margin-bottom:14px;border-left:3px solid #1877f2;padding-left:12px">
+      <div style="font-weight:600;margin-bottom:4px">#${m.id} — ${m.name} <small style="color:#888">(score min. ${m.min_score})</small></div>
+      <div style="font-size:.75rem;color:#888;margin-bottom:6px">Tag: ${m.tags.join(', ')}</div>
+      <div class="msg-preview">${m.text}</div>
+    </div>`).join('');
+}
+
+// ── FB Auth ───────────────────────────────────────────────────────────────────
+async function checkFbStatus() {
+  const r = await api('/auth/fb-status');
+  const badge = document.getElementById('fb-status-badge');
+  const el = document.getElementById('fb-status');
+  if (r.session_active) {
+    badge.textContent = '✅ Facebook connesso';
+    badge.style.background = '#d4edda';
+    badge.style.color = '#155724';
+    if (el) el.innerHTML = '<span style="color:#27ae60;font-weight:600">✅ Sessione Facebook attiva.</span>';
+  } else {
+    badge.textContent = '⚠️ Facebook non connesso';
+    badge.style.background = '#fff3cd';
+    badge.style.color = '#856404';
+    if (el) el.innerHTML = '<span style="color:#e74c3c;font-weight:600">❌ Nessuna sessione attiva. Fai il login.</span>';
+  }
+}
+
+async function doFbLogin() {
+  if (!confirm('Si aprirà un browser per il login Facebook. Continuare?')) return;
+  const r = await api('/auth/fb-login', 'POST');
+  alert(r.message || 'Login completato');
+  checkFbStatus();
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+async function loadStats() {
+  const [leads, jobs] = await Promise.all([api('/leads?limit=1000'), api('/search')]);
+  document.getElementById('s-total').textContent = leads.length;
+  document.getElementById('s-qualified').textContent = leads.filter(l => l.analysis_score >= 60).length;
+  document.getElementById('s-sent').textContent = leads.filter(l => l.message_sent).length;
+  document.getElementById('s-jobs').textContent = jobs.length;
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+checkFbStatus();
+loadStats();
+</script>
+</body>
+</html>
