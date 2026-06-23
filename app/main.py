@@ -36,5 +36,5 @@ app.include_router(router, prefix="/api")
 async def dashboard():
     html_file = Path("templates/index.html")
     if html_file.exists():
-        return html_file.read_text()
+        return html_file.read_text(encoding="utf-8")
     return "<h1>FB Automation API</h1><p><a href='/docs'>Swagger Docs</a></p>"

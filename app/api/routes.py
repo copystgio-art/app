@@ -40,8 +40,22 @@ async def fb_login():
     """Opens browser for Facebook login and saves session."""
     from app.messaging.fb_messenger import login_and_save_session
     import asyncio
+    from concurrent.futures import ThreadPoolExecutor
+    import subprocess, sys
+
+    def run_login():
+        import asyncio as _asyncio
+        loop = _asyncio.new_event_loop()
+        _asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(login_and_save_session())
+        finally:
+            loop.close()
+
     try:
-        success = await login_and_save_session()
+        loop = asyncio.get_event_loop()
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            success = await loop.run_in_executor(pool, run_login)
         return {"success": success, "message": "Sessione Facebook salvata con successo."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
