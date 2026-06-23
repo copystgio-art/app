@@ -37,28 +37,15 @@ class UpdateMessageRequest(BaseModel):
 
 @router.post("/auth/fb-login")
 async def fb_login():
-    """Opens browser for Facebook login and saves session."""
-    from app.messaging.fb_messenger import login_and_save_session
-    import asyncio
-    from concurrent.futures import ThreadPoolExecutor
-    import subprocess, sys
-
-    def run_login():
-        import asyncio as _asyncio
-        loop = _asyncio.new_event_loop()
-        _asyncio.set_event_loop(loop)
-        try:
-            return loop.run_until_complete(login_and_save_session())
-        finally:
-            loop.close()
-
-    try:
-        loop = asyncio.get_event_loop()
-        with ThreadPoolExecutor(max_workers=1) as pool:
-            success = await loop.run_in_executor(pool, run_login)
-        return {"success": success, "message": "Sessione Facebook salvata con successo."}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    """Instructions to run the login script manually."""
+    from app.messaging.fb_messenger import _session_exists
+    return {
+        "success": False,
+        "message": (
+            "Per fare il login Facebook, apri un nuovo cmd, vai in C:\\app e scrivi: "
+            "python fb_login.py"
+        ),
+    }
 
 
 @router.get("/auth/fb-status")
